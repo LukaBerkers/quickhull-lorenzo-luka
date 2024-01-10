@@ -4,30 +4,34 @@
 {-# LANGUAGE RebindableSyntax  #-}
 {-# LANGUAGE TypeOperators     #-}
 
-module Quickhull (
+module Quickhull
+    ( Point
+    , Line
+    , SegmentedPoints
+    , quickhull
 
-  Point, Line, SegmentedPoints,
-  quickhull,
+    -- Exported for display
+    , initialPartition
+    , partition
 
-  -- Exported for display
-  initialPartition,
-  partition,
+    -- Exported just for testing
+    , propagateL
+    , shiftHeadFlagsL
+    , segmentedScanl1
+    , propagateR
+    , shiftHeadFlagsR
+    , segmentedScanr1
+    ) where
 
-  -- Exported just for testing
-  propagateL, shiftHeadFlagsL, segmentedScanl1,
-  propagateR, shiftHeadFlagsR, segmentedScanr1,
-
-) where
-
-import Data.Array.Accelerate
-import Data.Array.Accelerate.Debug.Trace
-import qualified Prelude                      as P
+import           Data.Array.Accelerate
+import           Data.Array.Accelerate.Debug.Trace
+import qualified Prelude                       as P
 
 
 -- Points and lines in two-dimensional space
 --
 type Point = (Int, Int)
-type Line  = (Point, Point)
+type Line = (Point, Point)
 
 -- This algorithm will use a head-flags array to distinguish the different
 -- sections of the hull (the two arrays are always the same length).
@@ -58,35 +62,38 @@ type SegmentedPoints = (Vector Bool, Vector Point)
 --
 initialPartition :: Acc (Vector Point) -> Acc SegmentedPoints
 initialPartition points =
-  let
-      p1, p2 :: Exp Point
-      p1 = error "TODO: locate the left-most point"
-      p2 = error "TODO: locate the right-most point"
+    let
+        p1, p2 :: Exp Point
+        p1 = error "TODO: locate the left-most point"
+        p2 = error "TODO: locate the right-most point"
 
-      isUpper :: Acc (Vector Bool)
-      isUpper = error "TODO: determine which points lie above the line (p₁, p₂)"
+        isUpper :: Acc (Vector Bool)
+        isUpper = error "TODO: determine which points lie above the line (p₁, p₂)"
 
-      isLower :: Acc (Vector Bool)
-      isLower = error "TODO: determine which points lie below the line (p₁, p₂)"
+        isLower :: Acc (Vector Bool)
+        isLower = error "TODO: determine which points lie below the line (p₁, p₂)"
 
-      offsetUpper :: Acc (Vector Int)
-      countUpper  :: Acc (Scalar Int)
-      T2 offsetUpper countUpper = error "TODO: number of points above the line and their relative index"
+        offsetUpper :: Acc (Vector Int)
+        countUpper :: Acc (Scalar Int)
+        T2 offsetUpper countUpper =
+            error "TODO: number of points above the line and their relative index"
 
-      offsetLower :: Acc (Vector Int)
-      countLower  :: Acc (Scalar Int)
-      T2 offsetLower countLower = error "TODO: number of points below the line and their relative index"
+        offsetLower :: Acc (Vector Int)
+        countLower :: Acc (Scalar Int)
+        T2 offsetLower countLower =
+            error "TODO: number of points below the line and their relative index"
 
-      destination :: Acc (Vector (Maybe DIM1))
-      destination = error "TODO: compute the index in the result array for each point (if it is present)"
+        destination :: Acc (Vector (Maybe DIM1))
+        destination =
+            error "TODO: compute the index in the result array for each point (if it is present)"
 
-      newPoints :: Acc (Vector Point)
-      newPoints = error "TODO: place each point into its corresponding segment of the result"
+        newPoints :: Acc (Vector Point)
+        newPoints = error "TODO: place each point into its corresponding segment of the result"
 
-      headFlags :: Acc (Vector Bool)
-      headFlags = error "TODO: create head flags array demarcating the initial segments"
-  in
-  T2 headFlags newPoints
+        headFlags :: Acc (Vector Bool)
+        headFlags = error "TODO: create head flags array demarcating the initial segments"
+    in
+        T2 headFlags newPoints
 
 
 -- The core of the algorithm processes all line segments at once in
@@ -99,16 +106,14 @@ initialPartition points =
 -- These points are undecided.
 --
 partition :: Acc SegmentedPoints -> Acc SegmentedPoints
-partition (T2 headFlags points) =
-  error "TODO: partition"
+partition (T2 headFlags points) = error "TODO: partition"
 
 
 -- The completed algorithm repeatedly partitions the points until there are
 -- no undecided points remaining. What remains is the convex hull.
 --
 quickhull :: Acc (Vector Point) -> Acc (Vector Point)
-quickhull =
-  error "TODO: quickhull"
+quickhull = error "TODO: quickhull"
 
 
 -- Helper functions
@@ -126,10 +131,12 @@ shiftHeadFlagsL = error "TODO: shiftHeadFlagsL"
 shiftHeadFlagsR :: Acc (Vector Bool) -> Acc (Vector Bool)
 shiftHeadFlagsR = error "TODO: shiftHeadFlagsR"
 
-segmentedScanl1 :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
+segmentedScanl1
+    :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
 segmentedScanl1 = error "TODO: segmentedScanl1"
 
-segmentedScanr1 :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
+segmentedScanr1
+    :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
 segmentedScanr1 = error "TODO: segmentedScanr1"
 
 
