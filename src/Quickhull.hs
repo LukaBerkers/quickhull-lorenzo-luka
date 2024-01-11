@@ -26,6 +26,7 @@ module Quickhull
 import           Data.Array.Accelerate
 import           Data.Array.Accelerate.Debug.Trace
 import qualified Prelude                       as P
+import Data.Array.Accelerate.Interpreter (run)
 
 
 -- Points and lines in two-dimensional space
@@ -67,11 +68,17 @@ initialPartition points =
         p1 = error "TODO: locate the left-most point"
         p2 = error "TODO: locate the right-most point"
 
-        isUpper :: Acc (Vector Bool)
-        isUpper = error "TODO: determine which points lie above the line (p₁, p₂)"
+        baseline :: Exp Line
+        baseline = T2 p1 p2
+
+        opposite_baseline:: Exp Line
+        opposite_baseline = T2 p2 p1
+
+        isUpper :: Acc (Vector Bool) -- "TODO: determine which points lie above the line (p₁, p₂)"
+        isUpper = map (pointIsLeftOfLine baseline) points
 
         isLower :: Acc (Vector Bool)
-        isLower = error "TODO: determine which points lie below the line (p₁, p₂)"
+        isLower = map (pointIsLeftOfLine opposite_baseline) points -- error "TODO: determine which points lie below the line (p₁, p₂)"
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
