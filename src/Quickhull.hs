@@ -126,10 +126,12 @@ propagateR :: Elt a => Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
 propagateR = error "TODO: propagateR"
 
 shiftHeadFlagsL :: Acc (Vector Bool) -> Acc (Vector Bool)
-shiftHeadFlagsL = error "TODO: shiftHeadFlagsL"
+shiftHeadFlagsL flags = gather indices flags
+    where indices = generate (shape flags) (\(I1 i) -> (i + 1) `mod` length flags)
 
 shiftHeadFlagsR :: Acc (Vector Bool) -> Acc (Vector Bool)
-shiftHeadFlagsR = error "TODO: shiftHeadFlagsR"
+shiftHeadFlagsR flags = gather indices flags
+    where indices = generate (shape flags) (\(I1 i) -> (i - 1) `mod` length flags)
 
 segmentedScanl1
     :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
