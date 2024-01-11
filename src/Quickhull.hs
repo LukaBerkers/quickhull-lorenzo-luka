@@ -139,7 +139,7 @@ segmentedScanl1 f flags array = map snd $ scanl1 (segmented f) (zip flags array)
 
 segmentedScanr1
     :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
-segmentedScanr1 = error "TODO: segmentedScanr1"
+segmentedScanr1 f flags array = map snd $ scanr1 (flip (segmented f)) (zip flags array)
 
 
 -- Given utility functions
