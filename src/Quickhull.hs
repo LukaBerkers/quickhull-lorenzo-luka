@@ -135,7 +135,7 @@ shiftHeadFlagsR flags = gather indices flags
 
 segmentedScanl1
     :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
-segmentedScanl1 = error "TODO: segmentedScanl1"
+segmentedScanl1 f flags array = map snd $ scanl1 (segmented f) (zip flags array)
 
 segmentedScanr1
     :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
