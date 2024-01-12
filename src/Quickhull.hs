@@ -98,9 +98,20 @@ initialPartition points =
         T2 offsetLower countLower = T2 undefined (sum (map (\v -> if v then 1 else 0) isLower))
             -- error "TODO: number of points below the line and their relative index"
 
+        tmp:: Acc(Vector Int)
+        tmp =  undefined
+
+        -- gen :: Acc (Vector (Maybe DIM1))
+        gen :: Acc (Vector (Maybe Int))
+        gen = generate (I1 10) (\(I1 ix) -> lift (Just ix))
+
+        base :: Acc (Vector (Maybe DIM1))
+        base = fill (shape points) (constant Nothing)
+
         destination :: Acc (Vector (Maybe DIM1))
-        destination = error
-            "TODO: compute the index in the result array for each point (if it is present)"
+        destination = scatter tmp base undefined
+            
+            -- error "TODO: compute the index in the result array for each point (if it is present)"
 
         newPoints :: Acc (Vector Point)
         newPoints = error "TODO: place each point into its corresponding segment of the result"
