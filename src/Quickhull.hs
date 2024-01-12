@@ -26,7 +26,6 @@ module Quickhull
 import           Data.Array.Accelerate
 import           Data.Array.Accelerate.Debug.Trace
 import qualified Prelude                       as P
-import Data.Array.Accelerate.Interpreter (run)
 
 
 -- Points and lines in two-dimensional space
@@ -61,38 +60,47 @@ type SegmentedPoints = (Vector Bool, Vector Point)
 -- We indicate some intermediate values that you might find beneficial to
 -- compute.
 --
+
 initialPartition :: Acc (Vector Point) -> Acc SegmentedPoints
 initialPartition points =
     let
         p1, p2 :: Exp Point
-        p1 = error "TODO: locate the left-most point"
-        p2 = error "TODO: locate the right-most point"
+        p1 = the $ fold1
+            (\pt1@(T2 x1 y1) pt2@(T2 x2 y2) ->
+                if x1 < x2 then pt1 else if x1 > x2 then pt2 else if y1 > y2 then pt1 else pt2
+            )
+            points
+        p2 = the $ fold1
+            (\pt1@(T2 x1 y1) pt2@(T2 x2 y2) ->
+                if x1 > x2 then pt1 else if x1 < x2 then pt2 else if y1 < y2 then pt1 else pt2
+            )
+            points
 
         baseline :: Exp Line
         baseline = T2 p1 p2
 
-        opposite_baseline:: Exp Line
+        opposite_baseline :: Exp Line
         opposite_baseline = T2 p2 p1
 
-        isUpper :: Acc (Vector Bool) -- "TODO: determine which points lie above the line (p₁, p₂)"
+        isUpper :: Acc (Vector Bool)
         isUpper = map (pointIsLeftOfLine baseline) points
 
         isLower :: Acc (Vector Bool)
-        isLower = map (pointIsLeftOfLine opposite_baseline) points -- error "TODO: determine which points lie below the line (p₁, p₂)"
+        isLower = map (pointIsLeftOfLine opposite_baseline) points
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
-        T2 offsetUpper countUpper =
-            error "TODO: number of points above the line and their relative index"
+        T2 offsetUpper countUpper = T2 undefined (sum (map (\v -> if v then 1 else 0) isUpper))
+            -- error "TODO: number of points above the line and their relative index"
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower =
-            error "TODO: number of points below the line and their relative index"
+        T2 offsetLower countLower = T2 undefined (sum (map (\v -> if v then 1 else 0) isLower))
+            -- error "TODO: number of points below the line and their relative index"
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination =
-            error "TODO: compute the index in the result array for each point (if it is present)"
+        destination = error
+            "TODO: compute the index in the result array for each point (if it is present)"
 
         newPoints :: Acc (Vector Point)
         newPoints = error "TODO: place each point into its corresponding segment of the result"
@@ -101,6 +109,7 @@ initialPartition points =
         headFlags = error "TODO: create head flags array demarcating the initial segments"
     in
         T2 headFlags newPoints
+        -- T2 (fill (I1 3) (constant True)) (fill (I1 3) p2)
 
 
 -- The core of the algorithm processes all line segments at once in
@@ -133,12 +142,12 @@ propagateR :: Elt a => Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
 propagateR = segmentedScanr1 const
 
 shiftHeadFlagsL :: Acc (Vector Bool) -> Acc (Vector Bool)
-shiftHeadFlagsL flags = gather indices flags
-    where indices = generate (shape flags) (\(I1 i) -> (i + 1) `mod` length flags)
+shiftHeadFlagsL flags = scatter inices (fill (shape flags) True_) (drop 1 flags)
+    where inices = generate (I1 (length flags - 1)) (\(I1 i) -> i)
 
 shiftHeadFlagsR :: Acc (Vector Bool) -> Acc (Vector Bool)
-shiftHeadFlagsR flags = gather indices flags
-    where indices = generate (shape flags) (\(I1 i) -> (i - 1) `mod` length flags)
+shiftHeadFlagsR flags = scatter inices (fill (shape flags) True_) flags
+    where inices = generate (I1 (length flags - 1)) (\(I1 i) -> i + 1)
 
 segmentedScanl1
     :: Elt a => (Exp a -> Exp a -> Exp a) -> Acc (Vector Bool) -> Acc (Vector a) -> Acc (Vector a)
