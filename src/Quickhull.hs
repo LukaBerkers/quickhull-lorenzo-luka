@@ -102,15 +102,14 @@ initialPartition points =
         tmp = undefined
         -- tmp =  indexP1 ++ offsetLower ++ indexP2++ offsetUpper
 
-        -- gen :: Acc (Vector (Maybe DIM1))
-        gen :: Acc (Vector (Maybe Int))
-        gen = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> lift (Just ix))
+        gen :: Acc (Vector (Maybe DIM1))
+        gen = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
 
         base :: Acc (Vector (Maybe DIM1))
         base = fill (shape points) (constant Nothing)
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination = scatter tmp base undefined
+        destination = scatter tmp base gen
             
             -- error "TODO: compute the index in the result array for each point (if it is present)"
 
