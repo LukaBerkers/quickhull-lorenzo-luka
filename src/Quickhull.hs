@@ -98,29 +98,38 @@ initialPartition points =
         T2 offsetLower countLower = filter (isLower !!) (generate (shape points) (\(I1 ix) -> ix))
             -- error "TODO: number of points below the line and their relative index"
 
-        tmp:: Acc(Vector Int)
-        tmp = undefined
-        -- tmp =  indexP1 ++ offsetLower ++ indexP2++ offsetUpper
+        zeros :: Acc (Vector Int)
+        zeros = fill  (I1 (the countLower + the countUpper + constant 2)) 0
 
-        gen :: Acc (Vector (Maybe DIM1))
-        gen = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
+        generateUpper :: Acc (Vector Int)
+        generateUpper = generate (I1 (the countUpper)) (\(I1 ix) -> ix+1 )
 
-        base :: Acc (Vector (Maybe DIM1))
-        base = fill (shape points) (constant Nothing)
+        generateLower :: Acc (Vector Int)
+        generateLower = generate (I1 (the countLower)) (\(I1 ix) -> ix+2 + the countUpper )
+
+        concatVector:: Acc(Vector Int)
+        concatVector = scatter generateLower (scatter generateUpper zeros offsetUpper) offsetLower
+
+        justIndexes :: Acc (Vector (Maybe DIM1))
+        justIndexes = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
+
+        nothingBase :: Acc (Vector (Maybe DIM1))
+        nothingBase = fill (shape points) Nothing_
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination = scatter tmp base gen
-            -- error "TODO: compute the index in the result array for each point (if it is present)"
+        destination = scatter concatVector nothingBase justIndexes
 
-        zeros :: Acc (Vector Int)
-        zeros = fill (shape gen) 0
+        p12base :: Acc (Vector Point)
+        p12base = generate 
+                    (I1 (the countLower + the countUpper + constant 3)) 
+                    (\(I1 ix) -> ix == 0 || ix == the countLower + the countUpper + constant 2 ? (p1, p2))
 
         newPoints :: Acc (Vector Point)
-        newPoints = error "TODO: place each point into its corresponding segment of the result"
+        newPoints = permute max p12base (destination !) points
 
         headFlags :: Acc (Vector Bool)
         headFlags = 
-            generate (I1 (the countLower + the countUpper + constant 3))
+            generate (shape newPoints)
                 (\(I1 ix) -> (
                  ix == 0 ||
                  ix == the countUpper + 1 ||
@@ -128,7 +137,6 @@ initialPartition points =
                  ? (True_, False_))
     in
         T2 headFlags newPoints
-        -- T2 (fill (I1 3) (constant True)) (fill (I1 3) p2)
 
 
 -- The core of the algorithm processes all line segments at once in
