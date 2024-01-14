@@ -110,14 +110,22 @@ initialPartition points =
 
         destination :: Acc (Vector (Maybe DIM1))
         destination = scatter tmp base gen
-            
             -- error "TODO: compute the index in the result array for each point (if it is present)"
+
+        zeros :: Acc (Vector Int)
+        zeros = fill (shape gen) 0
 
         newPoints :: Acc (Vector Point)
         newPoints = error "TODO: place each point into its corresponding segment of the result"
 
         headFlags :: Acc (Vector Bool)
-        headFlags = error "TODO: create head flags array demarcating the initial segments"
+        headFlags = 
+            generate (I1 (the countLower + the countUpper + constant 3))
+                (\(I1 ix) -> (
+                 ix == 0 ||
+                 ix == the countUpper + 1 ||
+                 ix == the countLower + the countUpper + constant 2)
+                 ? (True_, False_))
     in
         T2 headFlags newPoints
         -- T2 (fill (I1 3) (constant True)) (fill (I1 3) p2)
