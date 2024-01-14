@@ -90,20 +90,21 @@ initialPartition points =
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
-        T2 offsetUpper countUpper = T2 undefined (sum (map (\v -> if v then 1 else 0) isUpper))
+        T2 offsetUpper countUpper = filter (isUpper !!) (generate (shape points) (\(I1 ix) -> ix))
             -- error "TODO: number of points above the line and their relative index"
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower = T2 undefined (sum (map (\v -> if v then 1 else 0) isLower))
+        T2 offsetLower countLower = filter (isLower !!) (generate (shape points) (\(I1 ix) -> ix))
             -- error "TODO: number of points below the line and their relative index"
 
         tmp:: Acc(Vector Int)
-        tmp =  undefined
+        tmp = undefined
+        -- tmp =  indexP1 ++ offsetLower ++ indexP2++ offsetUpper
 
         -- gen :: Acc (Vector (Maybe DIM1))
         gen :: Acc (Vector (Maybe Int))
-        gen = generate (I1 10) (\(I1 ix) -> lift (Just ix))
+        gen = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> lift (Just ix))
 
         base :: Acc (Vector (Maybe DIM1))
         base = fill (shape points) (constant Nothing)
