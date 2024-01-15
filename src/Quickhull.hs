@@ -65,75 +65,71 @@ initialPartition :: Acc (Vector Point) -> Acc SegmentedPoints
 initialPartition points =
     let
         p1, p2 :: Exp Point
-        p1 = the $ fold1
-            (\pt1@(T2 x1 y1) pt2@(T2 x2 y2) ->
-                if x1 < x2 then pt1 else if x1 > x2 then pt2 else if y1 > y2 then pt1 else pt2
-            )
-            points
-        p2 = the $ fold1
-            (\pt1@(T2 x1 y1) pt2@(T2 x2 y2) ->
-                if x1 > x2 then pt1 else if x1 < x2 then pt2 else if y1 < y2 then pt1 else pt2
-            )
-            points
-
-        baseline :: Exp Line
-        baseline = T2 p1 p2
-
-        opposite_baseline :: Exp Line
-        opposite_baseline = T2 p2 p1
+        p1 = the $ fold1 min points
+        p2 = the $ fold1 max points
 
         isUpper :: Acc (Vector Bool)
-        isUpper = map (pointIsLeftOfLine baseline) points
+        isUpper = map (pointIsLeftOfLine (T2 p1 p2)) points
 
         isLower :: Acc (Vector Bool)
-        isLower = map (pointIsLeftOfLine opposite_baseline) points
+        isLower = map (pointIsLeftOfLine (T2 p2 p1)) points
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
-        T2 offsetUpper countUpper = filter (isUpper !!) (generate (shape points) (\(I1 ix) -> ix))
-            -- error "TODO: number of points above the line and their relative index"
+        T2 offsetUpper countUpper = scanl' (+) 0 (map (\v -> v ?(1,0)) (shiftHeadFlagsL isUpper))
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower = filter (isLower !!) (generate (shape points) (\(I1 ix) -> ix))
-            -- error "TODO: number of points below the line and their relative index"
+        T2 offsetLower countLower = scanl' (+) 0 (map (\v -> v ?(1,0)) (shiftHeadFlagsL isLower))
 
-        zeros :: Acc (Vector Int)
-        zeros = fill  (I1 (the countLower + the countUpper + constant 2)) 0
+        -- newOffsetUpper :: Acc (Vector Int)
+        -- newOffsetUpper = scanl (+) 0 (map (\v -> v?(1,0)) (shiftHeadFlagsL isUpper))
+        
+        -- newOffsetLower :: Acc (Vector Int)
+        -- newOffsetLower = scanl (+) 0 (map (\v -> v?(1,0)) (shiftHeadFlagsL isLower))
 
-        generateUpper :: Acc (Vector Int)
-        generateUpper = generate (I1 (the countUpper)) (\(I1 ix) -> ix+1 )
+        -- zeros :: Acc (Vector Int)
+        -- zeros = fill  (I1 (the countLower + the countUpper + constant 2)) 0
 
-        generateLower :: Acc (Vector Int)
-        generateLower = generate (I1 (the countLower)) (\(I1 ix) -> ix+2 + the countUpper )
+        -- generateUpper :: Acc (Vector Int)
+        -- generateUpper = generate (I1 (the countUpper)) (\(I1 ix) -> ix+1 )
 
-        concatVector:: Acc(Vector Int)
-        concatVector = scatter generateLower (scatter generateUpper zeros offsetUpper) offsetLower
+        -- generateLower :: Acc (Vector Int)
+        -- generateLower = generate (I1 (the countLower)) (\(I1 ix) -> ix+2 + the countUpper )
 
-        justIndexes :: Acc (Vector (Maybe DIM1))
-        justIndexes = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
+        -- concatVector:: Acc(Vector Int)
+        -- concatVector = scatter generateLower (scatter generateUpper zeros offsetUpper) offsetLower
 
-        nothingBase :: Acc (Vector (Maybe DIM1))
-        nothingBase = fill (shape points) Nothing_
+
+        -- justIndexes :: Acc (Vector (Maybe DIM1))
+        -- justIndexes = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
+
+        -- nothingBase :: Acc (Vector (Maybe DIM1))
+        -- nothingBase = fill (shape points) Nothing_
+
+        zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
+        zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination = scatter concatVector nothingBase justIndexes
+        destination = zipWith4 zipFunction isUpper isLower offsetUpper offsetLower
 
         p12base :: Acc (Vector Point)
         p12base = generate 
-                    (I1 (the countLower + the countUpper + constant 3)) 
-                    (\(I1 ix) -> ix == 0 || ix == the countLower + the countUpper + constant 2 ? (p1, p2))
+                    (I1 (the countLower + the countUpper + constant 1)) 
+                    (\(I1 ix) -> ix == 0 || 
+                        ix == the countLower + the countUpper
+                        ? (p1, p2))
 
         newPoints :: Acc (Vector Point)
-        newPoints = permute max p12base (destination !) points
+        newPoints = permute const p12base (destination !) points
 
         headFlags :: Acc (Vector Bool)
         headFlags = 
             generate (shape newPoints)
                 (\(I1 ix) -> (
                  ix == 0 ||
-                 ix == the countUpper + 1 ||
-                 ix == the countLower + the countUpper + constant 2)
+                 ix == the countUpper||
+                 ix == the countLower + the countUpper)
                  ? (True_, False_))
     in
         T2 headFlags newPoints
