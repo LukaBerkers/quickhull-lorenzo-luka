@@ -82,31 +82,6 @@ initialPartition points =
         countLower :: Acc (Scalar Int)
         T2 offsetLower countLower = scanl' (+) 0 (map (\v -> v ?(1,0)) (shiftHeadFlagsL isLower))
 
-        -- newOffsetUpper :: Acc (Vector Int)
-        -- newOffsetUpper = scanl (+) 0 (map (\v -> v?(1,0)) (shiftHeadFlagsL isUpper))
-        
-        -- newOffsetLower :: Acc (Vector Int)
-        -- newOffsetLower = scanl (+) 0 (map (\v -> v?(1,0)) (shiftHeadFlagsL isLower))
-
-        -- zeros :: Acc (Vector Int)
-        -- zeros = fill  (I1 (the countLower + the countUpper + constant 2)) 0
-
-        -- generateUpper :: Acc (Vector Int)
-        -- generateUpper = generate (I1 (the countUpper)) (\(I1 ix) -> ix+1 )
-
-        -- generateLower :: Acc (Vector Int)
-        -- generateLower = generate (I1 (the countLower)) (\(I1 ix) -> ix+2 + the countUpper )
-
-        -- concatVector:: Acc(Vector Int)
-        -- concatVector = scatter generateLower (scatter generateUpper zeros offsetUpper) offsetLower
-
-
-        -- justIndexes :: Acc (Vector (Maybe DIM1))
-        -- justIndexes = generate (I1 (the countLower + the countUpper + constant 2)) (\(I1 ix) -> Just_ (index1 ix))
-
-        -- nothingBase :: Acc (Vector (Maybe DIM1))
-        -- nothingBase = fill (shape points) Nothing_
-
         zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
         zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
 
