@@ -120,14 +120,34 @@ initialPartition points =
 -- These points are undecided.
 --
 partition :: Acc SegmentedPoints -> Acc SegmentedPoints
-partition (T2 headFlags points) = initialPartition points
+partition (T2 headFlags points) = 
     -- find the maximum for each segment
-    
-    -- undefined
+    let 
+        propL :: Acc (Vector Point)
+        propL = propagateL headFlags points
+
+        propR :: Acc (Vector Point)
+        propR = propagateR headFlags points
+
+        distances :: Acc (Vector Int)
+        distances = zipWith3 (\p1 p2 p -> nonNormalizedDistance (T2 p1 p2) p) propL propR points
+
+        -- scanned_distances :: Acc (Vector Int)
+        -- scanned_distances = segmentedScanl1 max headFlags distances
+
+        func :: Exp (Point, Int) -> Exp (Point, Int) -> Exp (Point, Int)
+        func t1@(T2 _ d1) t2@(T2 _ d2) = d1 > d2 ? (t1,t2)
+
+        scanned_top_point :: Acc (Vector Point)
+        scanned_top_point = map fst $ segmentedScanl1 func headFlags (zip points distances)
+
+
+        
+
+
+    in 
+        undefined
     -- error "TODO: partition"
-
-
-
 
 
 -- The completed algorithm repeatedly partitions the points until there are
