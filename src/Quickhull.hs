@@ -120,14 +120,21 @@ initialPartition points =
 -- These points are undecided.
 --
 partition :: Acc SegmentedPoints -> Acc SegmentedPoints
-partition (T2 headFlags points) = error "TODO: partition"
+partition (T2 headFlags points) = initialPartition points
+    -- find the maximum for each segment
+    
+    -- undefined
+    -- error "TODO: partition"
+
+
+
 
 
 -- The completed algorithm repeatedly partitions the points until there are
 -- no undecided points remaining. What remains is the convex hull.
 --
 quickhull :: Acc (Vector Point) -> Acc (Vector Point)
-quickhull = error "TODO: quickhull"
+quickhull points = asnd $ awhile (and . afst) partition (initialPartition points)
 
 
 -- Helper functions
