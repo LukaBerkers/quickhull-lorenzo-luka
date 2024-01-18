@@ -141,6 +141,27 @@ partition (T2 headFlags points) =
         scanned_top_point :: Acc (Vector Point)
         scanned_top_point = map fst $ segmentedScanl1 func headFlags (zip points distances)
 
+        final_scan :: Acc (Vector Point)
+        final_scan = map fst $ segmentedScanr1 func headFlags (zip scanned_top_point distances)
+
+        isLeftFirst:: Acc (Vector Bool)
+        isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL final_scan
+
+        isLeftSecond:: Acc (Vector Bool)
+        isLeftSecond = zipWith3 (\p p2 m -> pointIsLeftOfLine (T2 m p2) p ) points propR final_scan
+
+
+
+
+
+
+        zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
+        zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
+
+        destination :: Acc (Vector (Maybe DIM1))
+        destination = zipWith4 zipFunction isLeftFirst isLeftSecond undefined undefined
+
+
     in 
         initialPartition points
         -- undefined
