@@ -88,24 +88,18 @@ initialPartition points =
         destination :: Acc (Vector (Maybe DIM1))
         destination = zipWith4 zipFunction isUpper isLower offsetUpper offsetLower
 
-        p12base :: Acc (Vector Point)
-        p12base = generate 
-                    (I1 (the countLower + the countUpper + constant 1)) 
+        base :: Acc (Vector Point)
+        base = generate 
+                    (I1 (the countLower + the countUpper + 1)) 
                     (\(I1 ix) -> ix == 0 || 
                         ix == the countLower + the countUpper
                         ? (p1, p2))
 
         newPoints :: Acc (Vector Point)
-        newPoints = permute const p12base (destination !) points
+        newPoints = permute const base (destination !) points
 
         headFlags :: Acc (Vector Bool)
-        headFlags = 
-            generate (shape newPoints)
-                (\(I1 ix) -> (
-                 ix == 0 ||
-                 ix == the countUpper||
-                 ix == the countLower + the countUpper)
-                 ? (True_, False_))
+        headFlags = zipWith (==) newPoints base
     in
         T2 headFlags newPoints
 
@@ -159,24 +153,31 @@ partition (T2 headFlags points) =
         countOffsetLeftSecond :: Acc (Vector Int)
         countOffsetLeftSecond = segmentedScanr1 max headFlags offsetLeftSecond
 
+        stenFunc :: Stencil3 (Int, Int) -> Exp Int
+        stenFunc (T2 prev1 prev2 , T2 current1 current2,  _) = (current1 == 0 && current2 == 0) ? (prev1 + prev2 + 2, 0)
+
+        stencilRes :: Acc (Vector Int)
+        stencilRes = stencil stenFunc clamp (zip countOffsetLeftFirst countOffsetLeftSecond) 
+
         generalOffset :: Acc (Vector Int)
-        generalOffset = undefined
+        generalOffset = scanl1 max stencilRes
 
         zipFunction6 ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
-        zipFunction6 islf isls olf ols colf genoff = islf ? (Just_ (index1 (genoff + olf)), isls ? (Just_ (index1 (genoff + ols + colf + constant 1)), Nothing_))
+        zipFunction6 islf isls olf ols colf genoff = islf ? (Just_ (index1 (genoff + olf)), isls ? (Just_ (index1 (genoff + ols + colf + 1)), Nothing_))
 
         destination :: Acc (Vector (Maybe DIM1))
         destination = zipWith6 zipFunction6 isLeftFirst isLeftSecond offsetLeftFirst offsetLeftSecond countOffsetLeftFirst generalOffset
 
         finalbase :: Acc (Vector Point)
-        finalbase = furthest_point
+        finalbase = furthest_point -- to be corrected
 
         newPoints :: Acc (Vector Point)
         newPoints = permute const finalbase (destination !) points
 
         newHeadFlags :: Acc (Vector Bool)
-        newHeadFlags = undefined
+        newHeadFlags = zipWith (==) newPoints finalbase
     in 
+        -- initialPartition points
         T2 newHeadFlags newPoints
 
 
