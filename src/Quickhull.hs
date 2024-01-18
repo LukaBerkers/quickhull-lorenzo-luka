@@ -76,11 +76,11 @@ initialPartition points =
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
-        T2 offsetUpper countUpper = scanl' (+) 0 (map (\v -> v ?(1,0)) (shiftHeadFlagsL isUpper))
+        T2 offsetUpper countUpper = scanl' (+) (isUpper ! I1 0 ? (1,0)) (map (\v -> v ?(1,0)) (shiftHeadFlagsL isUpper))
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower = scanl' (+) 0 (map (\v -> v ?(1,0)) (shiftHeadFlagsL isLower))
+        T2 offsetLower countLower = scanl' (+) (isLower ! I1 0 ? (1,0)) (map (\v -> v ?(1,0)) (shiftHeadFlagsL isLower))
 
         zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
         zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
@@ -141,12 +141,9 @@ partition (T2 headFlags points) =
         scanned_top_point :: Acc (Vector Point)
         scanned_top_point = map fst $ segmentedScanl1 func headFlags (zip points distances)
 
-
-        
-
-
     in 
-        undefined
+        initialPartition points
+        -- undefined
     -- error "TODO: partition"
 
 
