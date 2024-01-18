@@ -76,11 +76,11 @@ initialPartition points =
 
         offsetUpper :: Acc (Vector Int)
         countUpper :: Acc (Scalar Int)
-        T2 offsetUpper countUpper = scanl' (+) (isUpper ! I1 0 ? (1,0)) (map (\v -> v ?(1,0)) (shiftHeadFlagsL isUpper))
+        T2 offsetUpper countUpper = scanl' (+) (isUpper ! I1 0 ? (1,0)) (map boolToInt (shiftHeadFlagsL isUpper))
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower = scanl' (+) (isLower ! I1 0 ? (1,0)) (map (\v -> v ?(1,0)) (shiftHeadFlagsL isLower))
+        T2 offsetLower countLower = scanl' (+) (isLower ! I1 0 ? (1,0)) (map boolToInt (shiftHeadFlagsL isLower)) 
 
         zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
         zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
@@ -132,40 +132,52 @@ partition (T2 headFlags points) =
         distances :: Acc (Vector Int)
         distances = zipWith3 (\p1 p2 p -> nonNormalizedDistance (T2 p1 p2) p) propL propR points
 
-        -- scanned_distances :: Acc (Vector Int)
-        -- scanned_distances = segmentedScanl1 max headFlags distances
+        moreDistantPoint :: Exp (Point, Int) -> Exp (Point, Int) -> Exp (Point, Int)
+        moreDistantPoint t1@(T2 _ d1) t2@(T2 _ d2) = d1 > d2 ? (t1,t2)
 
-        func :: Exp (Point, Int) -> Exp (Point, Int) -> Exp (Point, Int)
-        func t1@(T2 _ d1) t2@(T2 _ d2) = d1 > d2 ? (t1,t2)
+        partial_furthest_point :: Acc (Vector Point)
+        partial_furthest_point = map fst $ segmentedScanl1 moreDistantPoint headFlags (zip points distances)
 
-        scanned_top_point :: Acc (Vector Point)
-        scanned_top_point = map fst $ segmentedScanl1 func headFlags (zip points distances)
-
-        final_scan :: Acc (Vector Point)
-        final_scan = map fst $ segmentedScanr1 func headFlags (zip scanned_top_point distances)
+        furthest_point :: Acc (Vector Point)
+        furthest_point = map fst $ segmentedScanr1 moreDistantPoint headFlags (zip partial_furthest_point distances)
 
         isLeftFirst:: Acc (Vector Bool)
-        isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL final_scan
+        isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL furthest_point
 
         isLeftSecond:: Acc (Vector Bool)
-        isLeftSecond = zipWith3 (\p p2 m -> pointIsLeftOfLine (T2 m p2) p ) points propR final_scan
+        isLeftSecond = zipWith3 (\p p2 m -> pointIsLeftOfLine (T2 m p2) p ) points propR furthest_point
 
+        offsetLeftFirst :: Acc (Vector Int)
+        offsetLeftFirst = segmentedScanl1 (+) headFlags (map boolToInt isLeftFirst)
 
+        offsetLeftSecond :: Acc (Vector Int)
+        offsetLeftSecond = segmentedScanl1 (+) headFlags (map boolToInt isLeftSecond)
 
+        countOffsetLeftFirst :: Acc (Vector Int)
+        countOffsetLeftFirst = segmentedScanr1 max headFlags offsetLeftFirst
 
+        countOffsetLeftSecond :: Acc (Vector Int)
+        countOffsetLeftSecond = segmentedScanr1 max headFlags offsetLeftSecond
 
+        generalOffset :: Acc (Vector Int)
+        generalOffset = undefined
 
-        zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
-        zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
+        zipFunction6 ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
+        zipFunction6 islf isls olf ols colf genoff = islf ? (Just_ (index1 (genoff + olf)), isls ? (Just_ (index1 (genoff + ols + colf + constant 1)), Nothing_))
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination = zipWith4 zipFunction isLeftFirst isLeftSecond undefined undefined
+        destination = zipWith6 zipFunction6 isLeftFirst isLeftSecond offsetLeftFirst offsetLeftSecond countOffsetLeftFirst generalOffset
 
+        finalbase :: Acc (Vector Point)
+        finalbase = furthest_point
 
+        newPoints :: Acc (Vector Point)
+        newPoints = permute const finalbase (destination !) points
+
+        newHeadFlags :: Acc (Vector Bool)
+        newHeadFlags = undefined
     in 
-        initialPartition points
-        -- undefined
-    -- error "TODO: partition"
+        T2 newHeadFlags newPoints
 
 
 -- The completed algorithm repeatedly partitions the points until there are
