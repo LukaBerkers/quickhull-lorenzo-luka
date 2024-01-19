@@ -80,7 +80,7 @@ initialPartition points =
 
         offsetLower :: Acc (Vector Int)
         countLower :: Acc (Scalar Int)
-        T2 offsetLower countLower = scanl' (+) (isLower ! I1 0 ? (1,0)) (map boolToInt (shiftHeadFlagsL isLower)) 
+        T2 offsetLower countLower = scanl' (+) (isLower ! I1 0 ? (1,0)) (map boolToInt (shiftHeadFlagsL isLower))
 
         zipFunction ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
         zipFunction isUppervalue isLowervalue offUpper offLower = isUppervalue ? (Just_ (index1 offUpper), isLowervalue ? (Just_ (index1 (offLower + the countUpper)), Nothing_))
@@ -89,9 +89,9 @@ initialPartition points =
         destination = zipWith4 zipFunction isUpper isLower offsetUpper offsetLower
 
         base :: Acc (Vector Point)
-        base = generate 
-                    (I1 (the countLower + the countUpper + 1)) 
-                    (\(I1 ix) -> ix == 0 || 
+        base = generate
+                    (I1 (the countLower + the countUpper + 1))
+                    (\(I1 ix) -> ix == 0 ||
                         ix == the countLower + the countUpper
                         ? (p1, p2))
 
@@ -114,9 +114,9 @@ initialPartition points =
 -- These points are undecided.
 --
 partition :: Acc SegmentedPoints -> Acc SegmentedPoints
-partition (T2 headFlags points) = 
+partition (T2 headFlags points) =
     -- find the maximum for each segment
-    let 
+    let
         propL :: Acc (Vector Point)
         propL = propagateL headFlags points
 
@@ -134,6 +134,9 @@ partition (T2 headFlags points) =
 
         furthest_point :: Acc (Vector Point)
         furthest_point = map fst $ segmentedScanr1 moreDistantPoint headFlags (zip partial_furthest_point distances)
+
+        isFurthestPoint :: Acc (Vector Bool)
+        isFurthestPoint = zipWith (==) furthest_point points
 
         isLeftFirst:: Acc (Vector Bool)
         isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL furthest_point
@@ -157,26 +160,35 @@ partition (T2 headFlags points) =
         stenFunc (T2 prev1 prev2 , T2 current1 current2,  _) = (current1 == 0 && current2 == 0) ? (prev1 + prev2 + 2, 0)
 
         stencilRes :: Acc (Vector Int)
-        stencilRes = stencil stenFunc clamp (zip countOffsetLeftFirst countOffsetLeftSecond) 
+        stencilRes = stencil stenFunc clamp (zip countOffsetLeftFirst countOffsetLeftSecond)
 
         generalOffset :: Acc (Vector Int)
         generalOffset = scanl1 max stencilRes
 
-        zipFunction6 ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -> Exp Int -> Exp (Maybe DIM1)
-        zipFunction6 islf isls olf ols colf genoff = islf ? (Just_ (index1 (genoff + olf)), isls ? (Just_ (index1 (genoff + ols + colf + 1)), Nothing_))
+        zipFunction4 :: Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int
+        zipFunction4 headFlag isFurthest genOff colf = isFurthest ? (headFlag ? (genOff,genOff + colf), 0)
+
+        truePointsDestinations :: Acc (Vector Int)
+        truePointsDestinations = zipWith4 zipFunction4 headFlags isFurthestPoint generalOffset countOffsetLeftFirst
+
+        zipFunction8 ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -> Exp Int -> Exp Bool -> Exp Int-> Exp (Maybe DIM1)
+        zipFunction8 islf isls olf ols colf genoff isTruePoint truePointsDestination= islf ? (Just_ (index1 (genoff + olf)), isls ? (Just_ (index1 (genoff + ols + colf + 1)), isTruePoint ? (Just_ (index1 truePointsDestination), Nothing_)))
 
         destination :: Acc (Vector (Maybe DIM1))
-        destination = zipWith6 zipFunction6 isLeftFirst isLeftSecond offsetLeftFirst offsetLeftSecond countOffsetLeftFirst generalOffset
+        destination = zipWith8 zipFunction8 isLeftFirst isLeftSecond offsetLeftFirst offsetLeftSecond countOffsetLeftFirst generalOffset isFurthestPoint truePointsDestinations
+
+        final_dimension :: Exp Int
+        final_dimension =  generalOffset !! (length generalOffset - 1)
 
         finalbase :: Acc (Vector Point)
-        finalbase = furthest_point -- to be corrected
+        finalbase = fill (I1 final_dimension) (points ! I1 0)
 
         newPoints :: Acc (Vector Point)
         newPoints = permute const finalbase (destination !) points
 
         newHeadFlags :: Acc (Vector Bool)
         newHeadFlags = zipWith (==) newPoints finalbase
-    in 
+    in
         -- initialPartition points
         T2 newHeadFlags newPoints
 
@@ -185,7 +197,7 @@ partition (T2 headFlags points) =
 -- no undecided points remaining. What remains is the convex hull.
 --
 quickhull :: Acc (Vector Point) -> Acc (Vector Point)
-quickhull points = asnd $ awhile (and . afst) partition (initialPartition points)
+quickhull points = asnd $ awhile (unit . not . the . and . afst) partition (initialPartition points)
 
 
 -- Helper functions
