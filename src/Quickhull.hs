@@ -3,6 +3,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax  #-}
 {-# LANGUAGE TypeOperators     #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use guards" #-}
 
 module Quickhull
     ( Point
@@ -155,11 +157,19 @@ partition (T2 headFlags points) =
         countOffsetLeftSecond :: Acc (Vector Int)
         countOffsetLeftSecond = atraceId "cntoffLeftSecnd" $ segmentedScanr1 max headFlags offsetLeftSecond
 
-        stenFunc :: Stencil3 (Int, Int) -> Exp Int
-        stenFunc (T2 prev1 prev2 , T2 current1 current2,  _) = (current1 == 0 && current2 == 0) ? ((prev1 == current1 && prev2 == current2) ? (0, prev1 + prev2 + 2), 0)
+        stenFunc :: Stencil3 (Int, Int, Bool) -> Exp Int
+        stenFunc (T3 preColf preCols preHF , T3 curColf curCols currHF,  _) =
+            if not currHF || (preColf == (-1) && preCols == (-1)) then 0
+            else if curColf == 0 && curCols == 0 && currHF
+                then preColf + preCols + (preHF ? (1,2))
+                else 0
+
+        boundary :: Boundary (Vector (Int, Int, Bool))
+        boundary = function $ \_ -> T3 (-1) (-1) True_
 
         stencilRes :: Acc (Vector Int)
-        stencilRes = stencil stenFunc clamp (zip countOffsetLeftFirst countOffsetLeftSecond)
+        stencilRes = stencil stenFunc boundary (zip3 countOffsetLeftFirst countOffsetLeftSecond headFlags)
+
 
         generalOffset :: Acc (Vector Int)
         generalOffset = atraceId "genOff" $ scanl1 (+) stencilRes
