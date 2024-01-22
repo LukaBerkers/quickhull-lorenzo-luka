@@ -127,22 +127,23 @@ partition (T2 headFlags points) =
         distances = zipWith3 (\p1 p2 p -> nonNormalizedDistance (T2 p1 p2) p) propL propR points
 
         moreDistantPoint :: Exp (Point, Int) -> Exp (Point, Int) -> Exp (Point, Int)  -- function that propagates the tuple (point, distance) with the highest distance
-        moreDistantPoint t1@(T2 _ d1) t2@(T2 _ d2) = d1 >= d2 ? (t1,t2)
+        moreDistantPoint t1@(T2 p1 d1) t2@(T2 p2 d2) =
+            (if (d1 > d2) || (d1 == d2 && p1 > p2) then t1 else t2)
 
         partial_furthest_point :: Acc (Vector Point)
         partial_furthest_point = map fst $ segmentedScanl1 moreDistantPoint headFlags (zip points distances)
 
-        furthest_point :: Acc (Vector Point)  -- double scan (left and right) to have the furthest point from the line of a segment for each point of a segment
-        furthest_point = map fst $ segmentedScanr1 moreDistantPoint headFlags (zip partial_furthest_point distances)
+        certainly_on_hull :: Acc (Vector Point)  -- double scan (left and right) to have the furthest point from the line of a segment for each point of a segment
+        certainly_on_hull = map fst $ segmentedScanr1 moreDistantPoint headFlags (zip partial_furthest_point distances)
 
         isFurthestPoint :: Acc (Vector Bool) -- True flag for every true HeadFlag and at every index in which the point is the furthest point
-        isFurthestPoint = zipWith (==) furthest_point points
+        isFurthestPoint = zipWith (==) certainly_on_hull points
 
         isLeftFirst:: Acc (Vector Bool) -- Check if the point is at the left of the line that is formed with p1 and the furthest point
-        isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL furthest_point
+        isLeftFirst = zipWith3 (\p p1 m -> pointIsLeftOfLine (T2 p1 m) p ) points propL certainly_on_hull
 
         isLeftSecond:: Acc (Vector Bool) -- Check if the point is at the left of the line that is formed with the furthest point and p2
-        isLeftSecond = zipWith3 (\p p2 m -> pointIsLeftOfLine (T2 m p2) p ) points propR furthest_point
+        isLeftSecond = zipWith3 (\p p2 m -> pointIsLeftOfLine (T2 m p2) p ) points propR certainly_on_hull
 
         offsetLeftFirst :: Acc (Vector Int) -- scans and count True flags in isLeftFirst
         offsetLeftFirst = segmentedScanl1 (+) headFlags (map boolToInt isLeftFirst)
@@ -159,9 +160,7 @@ partition (T2 headFlags points) =
         stenFunc :: Stencil3 (Int, Int, Bool) -> Exp Int
         stenFunc (T3 preColf preCols preHF , T3 _ _ currHF,  _) =
             if not currHF || (preColf == (-1) && preCols == (-1)) then 0 -- if it's not a headflag or it is the first element of the array then I don't need to increment and put 0
-            else if currHF 
-                then preColf + preCols + (preHF ? (1,2)) -- the value will be incremented by the amount of elements that will be inserted since last True HeadFlags up to now
-                else -2347234232 -- never reached
+            else preColf + preCols + (preHF ? (1,2))                     -- the value will be incremented by the amount of elements that will be inserted since last True HeadFlags up to now
 
         boundary :: Boundary (Vector (Int, Int, Bool)) -- out of bound elements must be recognizable, it returns a negative tuple
         boundary = function $ \_ -> T3 (-1) (-1) False_ -- False is not necessary, could also be True
@@ -174,8 +173,8 @@ partition (T2 headFlags points) =
 
         zipFunction4 :: Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -- function that explains how to use the general offset to compute the destination index of either a headFlags point or a furthest point
         zipFunction4 headFlag isFurthest genOff colf = if isFurthest
-                                                       then if headFlag 
-                                                            then genOff 
+                                                       then if headFlag
+                                                            then genOff
                                                             else genOff + colf + 1 -- colf = countOffsetLineFirst
                                                         else  0
 
@@ -183,8 +182,8 @@ partition (T2 headFlags points) =
         furthestOrHF_PointsDestinations = zipWith4 zipFunction4 headFlags isFurthestPoint generalOffset countOffsetLeftFirst
 
         basePointDestination :: Acc (Vector (Maybe DIM1))
-        basePointDestination = zipWith 
-            (\isHF_orFurthest truePointsDestination -> 
+        basePointDestination = zipWith
+            (\isHF_orFurthest truePointsDestination ->
                 if isHF_orFurthest then -- if headFlag or is a furthest point
                     Just_ (index1 truePointsDestination) -- get the computed value at that index
                 else Nothing_
@@ -192,14 +191,14 @@ partition (T2 headFlags points) =
             isFurthestPoint furthestOrHF_PointsDestinations
 
         zipFunction6 ::Exp Bool -> Exp Bool -> Exp Int -> Exp Int -> Exp Int -> Exp Int -> Exp (Maybe DIM1) -- compute the destination of all the other points that might still be on the convex hull ( but we don't know yet)
-        zipFunction6 is_lf is_ls olf ols colf genoff= 
+        zipFunction6 is_lf is_ls olf ols colf genoff=
             if is_lf                                            --is left first
-                then Just_ (index1 (genoff + olf))              -- general offset + offset left first
+                then Just_ (index1 (genoff + olf ) )              -- general offset + offset left first
             else if is_ls                                       -- is left second 
-                then Just_ (index1 (genoff + ols + colf + 1))   -- general offset + count offset left first + offset left second
+                then Just_ (index1 (genoff + colf + 1 + ols))   -- general offset + count offset left first + offset left second
             else  Nothing_ -- if none of those than the point surely isn't part of the convex hull
 
-        destination :: Acc (Vector (Maybe DIM1)) 
+        destination :: Acc (Vector (Maybe DIM1))
         destination = zipWith6 zipFunction6 isLeftFirst isLeftSecond offsetLeftFirst offsetLeftSecond countOffsetLeftFirst generalOffset
 
         final_dimension :: Exp Int -- the amount of needed points(+1) is stored at the end of the generalOffset vector at the last index
@@ -222,7 +221,7 @@ partition (T2 headFlags points) =
 -- no undecided points remaining. What remains is the convex hull.
 --
 quickhull :: Acc (Vector Point) -> Acc (Vector Point)
-quickhull points = asnd $ awhile (unit . not . the . and . afst) partition (initialPartition points)
+quickhull points = tail $ asnd $ awhile (map not . and . afst) partition (initialPartition points)
 
 
 -- Helper functions
