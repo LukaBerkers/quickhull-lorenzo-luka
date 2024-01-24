@@ -73,4 +73,4 @@ jobs:
         run: cabal run quickhull-test
 
       - name: Bench
-        run: cabal run quickhull-test -- --benchmark --random 100000 --seed 1234
+        run: cabal run quickhull -- --benchmark --random 100000 --seed 1234
